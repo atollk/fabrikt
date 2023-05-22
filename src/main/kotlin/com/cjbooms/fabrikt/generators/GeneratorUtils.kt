@@ -31,7 +31,7 @@ object GeneratorUtils {
         this.toBodyRequestSchema().map {
             val modelType = toModelType(
                 basePackage = basePackage,
-                typeInfo = KotlinTypeInfo.from(it),
+                typeInfo = it.fullInfo().typeInfo,
                 isNullable = !this.isRequired
             )
             ParameterSpec.builder(
@@ -48,7 +48,7 @@ object GeneratorUtils {
             this.name.toKCodeName(),
             toModelType(
                 basePackage = basePackage,
-                typeInfo = KotlinTypeInfo.from(this.schema),
+                typeInfo = this.schema.fullInfo().typeInfo,
                 isNullable = !this.isRequired && this.schema.default == null
             )
         ).build()
@@ -106,7 +106,7 @@ object GeneratorUtils {
 
     fun Schema.toVarName() = this.name?.toKCodeName() ?: this.toClassName().simpleName.toKCodeName()
 
-    private fun Schema.toClassName() = KotlinTypeInfo.from(this).modelKClass.asTypeName()
+    private fun Schema.toClassName() = this.fullInfo().typeInfo.modelKClass.asTypeName()
 
     fun String.toClassName(basePackage: String) = ClassName(packageName = basePackage, simpleName = this)
 
@@ -157,7 +157,7 @@ object GeneratorUtils {
                 BodyParameter(
                     it.schema.fullInfo().oasKey.toKotlinParameterName().ifEmpty { it.schema.toVarName() },
                     requestBody.description,
-                    toModelType(basePackage, KotlinTypeInfo.from(it.schema)),
+                    toModelType(basePackage, it.schema.fullInfo().typeInfo),
                     it.schema
                 )
             }
@@ -167,7 +167,7 @@ object GeneratorUtils {
                 RequestParameter(
                     it.name,
                     it.description,
-                    toModelType(basePackage, KotlinTypeInfo.from(it.schema), isNullable(it)),
+                    toModelType(basePackage, it.schema.fullInfo().typeInfo, isNullable(it)),
                     it
                 )
             }

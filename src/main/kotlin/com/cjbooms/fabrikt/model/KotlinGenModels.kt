@@ -107,7 +107,7 @@ class RequestParameter(
         description = description,
         type = type,
         originalName = parameter.name,
-        typeInfo = KotlinTypeInfo.from(parameter.schema, oasName),
+        typeInfo = parameter.schema.fullInfo().typeInfo,
         minimum = parameter.schema.minimum,
         maximum = parameter.schema.maximum,
         parameterLocation = RequestParameterLocation(parameter.`in`),

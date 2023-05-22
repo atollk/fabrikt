@@ -10,11 +10,7 @@ import com.cjbooms.fabrikt.generators.GeneratorUtils.toClassName
 import com.cjbooms.fabrikt.generators.GeneratorUtils.toIncomingParameters
 import com.cjbooms.fabrikt.generators.OasDefault
 import com.cjbooms.fabrikt.generators.model.JacksonModelGenerator.Companion.toModelType
-import com.cjbooms.fabrikt.model.ClientType
-import com.cjbooms.fabrikt.model.HeaderParam
-import com.cjbooms.fabrikt.model.IncomingParameter
-import com.cjbooms.fabrikt.model.KotlinTypeInfo
-import com.cjbooms.fabrikt.model.RequestParameter
+import com.cjbooms.fabrikt.model.*
 import com.fasterxml.jackson.databind.JsonNode
 import com.reprezen.kaizen.oasparser.model3.Operation
 import com.reprezen.kaizen.oasparser.model3.Path
@@ -42,7 +38,7 @@ object ClientGeneratorUtils {
                     this.getPrimaryContentMediaType()?.let {
                         toModelType(
                                 packages.base,
-                                KotlinTypeInfo.from(it.value.schema)
+                                it.value.schema.fullInfo().typeInfo
                         )
                     } ?: Unit::class.asTypeName()
                 }

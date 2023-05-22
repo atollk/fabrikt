@@ -3,6 +3,7 @@ package com.cjbooms.fabrikt.generators.controller
 import com.cjbooms.fabrikt.generators.model.JacksonModelGenerator.Companion.toModelType
 import com.cjbooms.fabrikt.model.ControllerType
 import com.cjbooms.fabrikt.model.KotlinTypeInfo
+import com.cjbooms.fabrikt.model.fullInfo
 import com.cjbooms.fabrikt.util.NormalisedString.camelCase
 import com.reprezen.kaizen.oasparser.model3.Operation
 import com.reprezen.kaizen.oasparser.model3.Response
@@ -24,7 +25,7 @@ object ControllerGeneratorUtils {
             .map { it.value?.schema }
             .filterNotNull()
             .firstOrNull()
-            ?.let { toModelType(basePackage, KotlinTypeInfo.from(it)) }
+            ?.let { toModelType(basePackage, it.fullInfo().typeInfo) }
             ?: Unit::class.asTypeName()
     }
 
