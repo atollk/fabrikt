@@ -30,8 +30,6 @@ object KaizenParserExtensions {
     fun Schema.isPolymorphicSuperType(): Boolean = discriminator?.propertyName != null ||
         getDiscriminatorForInLinedObjectUnderAllOf()?.propertyName != null
 
-    fun IJsonOverlay<*>.pathFromRoot(): String = Overlay.of(this).pathFromRoot!!
-
     fun Schema.isInlinedObjectDefinition() =
         isObjectType() && !isSchemaLess() && (
             Overlay.of(this).pathFromRoot.contains("properties") ||

@@ -152,7 +152,7 @@ class JacksonModelGenerator(
     }
 
     private fun createModels(api: OpenApi3, schemas: Collection<SchemaInfo>): MutableSet<TypeSpec> {
-        val x = schemas
+        return schemas
             .filterNot { it.schema.isSimpleType() }
             .filterNot { it.schema.isOneOfPolymorphicTypes() }
             .flatMap {
@@ -172,8 +172,7 @@ class JacksonModelGenerator(
                 } else {
                     emptyList()
                 }
-            }
-        return x.toMutableSet()
+            }.toMutableSet()
     }
 
     private fun buildPrimaryModel(

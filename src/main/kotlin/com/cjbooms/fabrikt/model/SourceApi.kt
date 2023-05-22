@@ -1,12 +1,13 @@
 package com.cjbooms.fabrikt.model
 
 import com.beust.jcommander.ParameterException
+import com.cjbooms.fabrikt.model.OasType.Companion.toOasType
 import com.cjbooms.fabrikt.util.KaizenParserExtensions.isNotDefined
 import com.cjbooms.fabrikt.util.KaizenParserExtensions.isOneOfPolymorphicTypes
-import com.cjbooms.fabrikt.util.KaizenParserExtensions.pathFromRoot
 import com.cjbooms.fabrikt.util.NormalisedString.toModelClassName
 import com.cjbooms.fabrikt.util.YamlUtils
 import com.cjbooms.fabrikt.validation.ValidationError
+import com.reprezen.jsonoverlay.IJsonOverlay
 import com.reprezen.jsonoverlay.Overlay
 import com.reprezen.kaizen.oasparser.model3.OpenApi3
 import com.reprezen.kaizen.oasparser.model3.Schema
@@ -50,7 +51,13 @@ data class SourceApi(
         allSchemas = openApi3.schemas.entries.map { it.key to it.value }
             .plus(openApi3.parameters.entries.map { it.key to it.value.schema })
             .plus(openApi3.responses.entries.flatMap { it.value.contentMediaTypes.entries.map { content -> it.key to content.value.schema } })
-            .associate { (baseName, schema) -> schema.pathFromRoot() to SchemaInfo(baseName, SchemaNameBuilder.getName(schema), schema) }
+            .associate { (baseName, schema) ->
+                schema.pathFromRoot().joinToString("/") to SchemaInfo(
+                    baseName,
+                    SchemaNameBuilder.getName(schema),
+                    schema
+                )
+            }
     }
 
     private fun validateSchemaObjects(api: OpenApi3): List<ValidationError> {
@@ -96,7 +103,9 @@ data class SourceApi(
 
 fun Schema.fullInfo() = SchemaInfo(SchemaNameBuilder.getOasKey(this), SchemaNameBuilder.getName(this), this)
 
- object SchemaNameBuilder {
+private fun IJsonOverlay<*>.pathFromRoot(): List<String> = Overlay.of(this).pathFromRoot!!.split("/")
+
+object SchemaNameBuilder {
     fun getOasKey(schema: Schema): String {
         val overlay = Overlay.of(schema)
         return overlay.pathInParent ?: overlay.pathFromRoot.split("/").lastOrNull() ?: ""
@@ -104,7 +113,22 @@ fun Schema.fullInfo() = SchemaInfo(SchemaNameBuilder.getOasKey(this), SchemaName
 
     fun getName(schema: Schema): String {
         // TODO: do an actual implementation
-        return schema.toModelClassName()
+        return when (val type = schema.toOasType(getOasKey(schema))) {
+            OasType.Object -> schema.toModelClassName()
+            OasType.Array -> {
+                val path = schema.pathFromRoot()
+                val error = UnsupportedOperationException(path.joinToString("/"))
+                if (path.size < 3)
+                    throw error
+                if (path[path.size-2] == "properties")
+                    schema.toModelClassName(path[path.size-3])
+                else if (path[path.size-2] == "schemas")
+                    schema.itemsSchema.fullInfo().fullName
+                else
+                    throw error
+            }
+            else -> ""
+        }
     }
 
     private fun Schema.toModelClassName(enclosingClassName: String = "") =

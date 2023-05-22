@@ -183,7 +183,10 @@ sealed class PropertyInfo {
         val parentSchema: SchemaInfo,
         val enclosingSchema: SchemaInfo?
     ) : PropertyInfo(), CollectionValidation {
-        override val typeInfo: KotlinTypeInfo = schema.fullInfo().typeInfo
+        override val typeInfo: KotlinTypeInfo = if (enclosingSchema == null)
+            KotlinTypeInfo.Array(schema.itemsSchema.fullInfo().typeInfo)
+        else
+            schema.fullInfo().typeInfo
         override val minItems: Int? = schema.minItems
         override val maxItems: Int? = schema.maxItems
     }
