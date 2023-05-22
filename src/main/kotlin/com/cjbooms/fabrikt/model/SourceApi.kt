@@ -2,17 +2,24 @@ package com.cjbooms.fabrikt.model
 
 import com.beust.jcommander.ParameterException
 import com.cjbooms.fabrikt.util.KaizenParserExtensions.isNotDefined
+import com.cjbooms.fabrikt.util.KaizenParserExtensions.isOneOfPolymorphicTypes
 import com.cjbooms.fabrikt.util.KaizenParserExtensions.pathFromRoot
+import com.cjbooms.fabrikt.util.NormalisedString.toModelClassName
 import com.cjbooms.fabrikt.util.YamlUtils
 import com.cjbooms.fabrikt.validation.ValidationError
+import com.reprezen.jsonoverlay.Overlay
 import com.reprezen.kaizen.oasparser.model3.OpenApi3
 import com.reprezen.kaizen.oasparser.model3.Schema
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.logging.Logger
 
-data class SchemaInfo(val name: String, val schema: Schema) {
-    val typeInfo: KotlinTypeInfo = KotlinTypeInfo.from(schema, name)
+data class SchemaInfo(
+    val oasKey: String,
+    val fullName: String,
+    val schema: Schema
+) {
+    val typeInfo: KotlinTypeInfo = KotlinTypeInfo.from(schema, oasKey = oasKey)
 }
 
 data class SourceApi(
@@ -43,7 +50,7 @@ data class SourceApi(
         allSchemas = openApi3.schemas.entries.map { it.key to it.value }
             .plus(openApi3.parameters.entries.map { it.key to it.value.schema })
             .plus(openApi3.responses.entries.flatMap { it.value.contentMediaTypes.entries.map { content -> it.key to content.value.schema } })
-            .associate { (key, schema) -> schema.pathFromRoot() to SchemaInfo(key, schema) }
+            .associate { (baseName, schema) -> schema.pathFromRoot() to SchemaInfo(baseName, SchemaNameBuilder.getName(schema), schema) }
     }
 
     private fun validateSchemaObjects(api: OpenApi3): List<ValidationError> {
@@ -51,15 +58,15 @@ data class SourceApi(
             val name = entry.key
             val schema = entry.value
             if (schema.type == OasType.Object.type && (
-                schema.oneOfSchemas?.isNotEmpty() == true ||
-                    schema.allOfSchemas?.isNotEmpty() == true ||
-                    schema.anyOfSchemas?.isNotEmpty() == true
-                )
+                        schema.oneOfSchemas?.isNotEmpty() == true ||
+                                schema.allOfSchemas?.isNotEmpty() == true ||
+                                schema.anyOfSchemas?.isNotEmpty() == true
+                        )
             )
                 errors + listOf(
                     ValidationError(
                         "'$name' schema contains an invalid combination of properties and `oneOf | anyOf | allOf`. " +
-                            "Do not use properties and a combiner at the same level."
+                                "Do not use properties and a combiner at the same level."
                     )
                 )
             else if (schema.type == OasType.Object.type && schema.oneOfSchemas?.isNotEmpty() == true)
@@ -85,4 +92,40 @@ data class SourceApi(
                 }
             }
     }
+}
+
+fun Schema.fullInfo() = SchemaInfo("" /*TODO*/, SchemaNameBuilder.getName(this), this)
+
+private object SchemaNameBuilder {
+    fun getName(schema: Schema): String {
+        // TODO
+        return TODO()
+    }
+
+    private fun Schema.toModelClassName(enclosingClassName: String = "") =
+        enclosingClassName + safeName().toModelClassName()
+
+    private val invalidNames =
+        listOf(
+            "anyOf",
+            "oneOf",
+            "allOf",
+            "items",
+            "schema",
+            "application~1json",
+            "content",
+            "additionalProperties",
+            "properties",
+        )
+
+    private fun Schema.safeName(): String =
+        when {
+            isOneOfPolymorphicTypes() -> this.oneOfSchemas.first().allOfSchemas.first().safeName()
+            name != null -> name
+            else -> Overlay.of(this).pathFromRoot
+                .splitToSequence("/")
+                .filterNot { invalidNames.contains(it) }
+                .filter { it.toIntOrNull() == null } // Ignore numeric-identifiers path-parts in: allOf / oneOf / anyOf
+                .last()
+        }
 }

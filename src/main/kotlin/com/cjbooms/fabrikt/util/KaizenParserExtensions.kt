@@ -16,19 +16,6 @@ import com.reprezen.kaizen.oasparser.model3.Schema
 import java.net.URI
 
 object KaizenParserExtensions {
-
-    private val invalidNames =
-        listOf(
-            "anyOf",
-            "oneOf",
-            "allOf",
-            "items",
-            "schema",
-            "application~1json",
-            "content",
-            "additionalProperties",
-            "properties",
-        )
     private val simpleTypes = listOf(
         OasType.Text.type,
         OasType.Number.type,
@@ -60,8 +47,6 @@ object KaizenParserExtensions {
 
     fun Schema.isInlinedArrayDefinition() =
         isArrayType() && !isSchemaLess() && this.itemsSchema.isInlinedObjectDefinition()
-
-    fun Schema.toModelClassName(enclosingClassName: String = "") = enclosingClassName + safeName().toModelClassName()
 
     fun Schema.toMapValueClassName() = safeName().toMapValueClassName()
 
@@ -189,17 +174,6 @@ object KaizenParserExtensions {
             }
 
     fun Schema.hasNoDiscriminator(): Boolean = this.discriminator.propertyName == null
-
-    fun Schema.safeName(): String =
-        when {
-            isOneOfPolymorphicTypes() -> this.oneOfSchemas.first().allOfSchemas.first().safeName()
-            name != null -> name
-            else -> Overlay.of(this).pathFromRoot
-                .splitToSequence("/")
-                .filterNot { invalidNames.contains(it) }
-                .filter { it.toIntOrNull() == null } // Ignore numeric-identifiers path-parts in: allOf / oneOf / anyOf
-                .last()
-        }
 
     fun Schema.safeType(): String? =
         when {
