@@ -2,6 +2,7 @@ package com.cjbooms.fabrikt.model
 
 import com.beust.jcommander.ParameterException
 import com.cjbooms.fabrikt.util.KaizenParserExtensions.isNotDefined
+import com.cjbooms.fabrikt.util.KaizenParserExtensions.pathFromRoot
 import com.cjbooms.fabrikt.util.YamlUtils
 import com.cjbooms.fabrikt.validation.ValidationError
 import com.reprezen.kaizen.oasparser.model3.OpenApi3
@@ -33,7 +34,7 @@ data class SourceApi(
     }
 
     val openApi3: OpenApi3 = YamlUtils.parseOpenApi(rawApiSpec, baseDir)
-    val allSchemas: List<SchemaInfo>
+    val allSchemas: Map<String, SchemaInfo>
 
     init {
         validateSchemaObjects(openApi3).let {
@@ -42,7 +43,7 @@ data class SourceApi(
         allSchemas = openApi3.schemas.entries.map { it.key to it.value }
             .plus(openApi3.parameters.entries.map { it.key to it.value.schema })
             .plus(openApi3.responses.entries.flatMap { it.value.contentMediaTypes.entries.map { content -> it.key to content.value.schema } })
-            .map { (key, schema) -> SchemaInfo(key, schema) }
+            .associate { (key, schema) -> schema.pathFromRoot() to SchemaInfo(key, schema) }
     }
 
     private fun validateSchemaObjects(api: OpenApi3): List<ValidationError> {

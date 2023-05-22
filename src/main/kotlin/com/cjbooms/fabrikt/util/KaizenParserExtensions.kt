@@ -4,8 +4,10 @@ import com.cjbooms.fabrikt.cli.ModelCodeGenOptionType
 import com.cjbooms.fabrikt.generators.MutableSettings
 import com.cjbooms.fabrikt.model.OasType
 import com.cjbooms.fabrikt.model.PropertyInfo
+import com.cjbooms.fabrikt.util.KaizenParserExtensions.isInlinedObjectDefinition
 import com.cjbooms.fabrikt.util.NormalisedString.toMapValueClassName
 import com.cjbooms.fabrikt.util.NormalisedString.toModelClassName
+import com.reprezen.jsonoverlay.IJsonOverlay
 import com.reprezen.jsonoverlay.Overlay
 import com.reprezen.kaizen.oasparser.model3.Discriminator
 import com.reprezen.kaizen.oasparser.model3.OpenApi3
@@ -38,6 +40,8 @@ object KaizenParserExtensions {
 
     fun Schema.isPolymorphicSuperType(): Boolean = discriminator?.propertyName != null ||
         getDiscriminatorForInLinedObjectUnderAllOf()?.propertyName != null
+
+    fun IJsonOverlay<*>.pathFromRoot() = Overlay.of(this).pathFromRoot
 
     fun Schema.isInlinedObjectDefinition() =
         isObjectType() && !isSchemaLess() && (

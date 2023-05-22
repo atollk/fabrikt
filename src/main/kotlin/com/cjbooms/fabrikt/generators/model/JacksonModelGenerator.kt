@@ -145,7 +145,7 @@ class JacksonModelGenerator(
     private val externalApiSchemas = mutableMapOf<URL, MutableSet<String>>()
 
     fun generate(): Models {
-        val models: MutableSet<TypeSpec> = createModels(sourceApi.openApi3, sourceApi.allSchemas)
+        val models: MutableSet<TypeSpec> = createModels(sourceApi.openApi3, sourceApi.allSchemas.values)
         externalApiSchemas.forEach { externalReferences ->
             val api = OpenApi3Parser().parse(externalReferences.key)
             val schemas = api.schemas.entries.map { it.key to it.value }
@@ -159,7 +159,7 @@ class JacksonModelGenerator(
         return Models(models.map { ModelType(it, packages.base) })
     }
 
-    private fun createModels(api: OpenApi3, schemas: List<SchemaInfo>) = schemas
+    private fun createModels(api: OpenApi3, schemas: Collection<SchemaInfo>) = schemas
         .filterNot { it.schema.isSimpleType() }
         .filterNot { it.schema.isOneOfPolymorphicTypes() }
         .flatMap {
@@ -185,7 +185,7 @@ class JacksonModelGenerator(
         api: OpenApi3,
         schemaInfo: SchemaInfo,
         properties: Collection<PropertyInfo>,
-        allSchemas: List<SchemaInfo>,
+        allSchemas: Collection<SchemaInfo>,
     ): TypeSpec {
         val modelName = schemaInfo.name.toModelClassName()
         val schemaName = schemaInfo.schema.getSchemaRefName()
@@ -241,7 +241,7 @@ class JacksonModelGenerator(
     }
 
     private fun findOneOfSuperInterface(
-        allSchemas: List<SchemaInfo>,
+        allSchemas: Collection<SchemaInfo>,
         schema: SchemaInfo,
         options: Set<ModelCodeGenOptionType>,
     ): Set<SchemaInfo> {
@@ -511,7 +511,7 @@ class JacksonModelGenerator(
         superType: SchemaInfo,
         extensions: Map<String, Any>,
         oneOfSuperInterfaces: Set<SchemaInfo>,
-        allSchemas: List<SchemaInfo>,
+        allSchemas: Collection<SchemaInfo>,
     ): TypeSpec = with(FunSpec.constructorBuilder()) {
         TypeSpec.classBuilder(generatedType(packages.base, modelName))
             .buildPolymorphicSubType(
@@ -538,7 +538,7 @@ class JacksonModelGenerator(
     private fun oneOfSuperInterface(
         modelName: String,
         discriminator: Discriminator,
-        allSchemas: List<SchemaInfo>,
+        allSchemas: Collection<SchemaInfo>,
         members: List<Schema>,
         oneOfSuperInterfaces: Set<SchemaInfo>,
     ): TypeSpec {
@@ -581,7 +581,7 @@ class JacksonModelGenerator(
         discriminator: Discriminator,
         extensions: Map<String, Any>,
         oneOfSuperInterfaces: Set<SchemaInfo>,
-        allSchemas: List<SchemaInfo>,
+        allSchemas: Collection<SchemaInfo>,
     ): TypeSpec = TypeSpec.classBuilder(generatedType(packages.base, modelName))
         .buildPolymorphicSuperType(
             modelName = modelName,
@@ -601,7 +601,7 @@ class JacksonModelGenerator(
         discriminator: Discriminator,
         extensions: Map<String, Any>,
         oneOfSuperInterfaces: Set<SchemaInfo>,
-        allSchemas: List<SchemaInfo>,
+        allSchemas: Collection<SchemaInfo>,
         constructorBuilder: FunSpec.Builder = FunSpec.constructorBuilder(),
     ): TypeSpec.Builder {
         this.addModifiers(KModifier.SEALED)
