@@ -155,7 +155,7 @@ class JacksonModelGenerator(
         .filterNot { it.schema.isSimpleType() }
         .filterNot { it.schema.isOneOfPolymorphicTypes() }
         .flatMap {
-            val properties = it.schema.topLevelProperties(HTTP_SETTINGS, it.schema)
+            val properties = it.topLevelProperties(HTTP_SETTINGS, it)
             if (properties.isNotEmpty() || it.typeInfo is KotlinTypeInfo.Enum) {
                 val primaryModel = buildPrimaryModel(api, it, properties, schemas)
                 val inlinedModels = buildInLinedModels(properties, it, it.schema.getDocumentUrl())
@@ -164,7 +164,7 @@ class JacksonModelGenerator(
                 buildInlinedListDefinition(
                     schemaInfo = it,
                     schemaName = it.fullName,
-                    enclosingSchema = it.schema,
+                    enclosingSchema = it,
                     apiDocUrl = it.schema.getDocumentUrl(),
                     enclosingModelName = it.oasKey,
                 )
@@ -190,13 +190,13 @@ class JacksonModelGenerator(
                 findOneOfSuperInterface(allSchemas, schemaInfo, options),
             )
 
-            schemaInfo.schema.isPolymorphicSuperType() && schemaInfo.schema.isPolymorphicSubType(api) ->
+            schemaInfo.schema.isPolymorphicSuperType() && schemaInfo.isPolymorphicSubType(api) ->
                 polymorphicSuperSubType(
                     modelName,
                     schemaName,
                     properties,
                     checkNotNull(schemaInfo.schema.getDiscriminatorForInLinedObjectUnderAllOf()),
-                    schemaInfo.schema.getSuperType(api)!!.fullInfo(),
+                    schemaInfo.getSuperType(api)!!.fullInfo(),
                     schemaInfo.schema.extensions,
                     findOneOfSuperInterface(allSchemas, schemaInfo, options),
                     allSchemas,
@@ -212,11 +212,11 @@ class JacksonModelGenerator(
                 allSchemas,
             )
 
-            schemaInfo.schema.isPolymorphicSubType(api) -> polymorphicSubType(
+            schemaInfo.isPolymorphicSubType(api) -> polymorphicSubType(
                 modelName,
                 schemaName,
                 properties,
-                schemaInfo.schema.getSuperType(api)!!.fullInfo(),
+                schemaInfo.getSuperType(api)!!.fullInfo(),
                 schemaInfo.schema.extensions,
                 findOneOfSuperInterface(allSchemas, schemaInfo, options),
             )
@@ -274,7 +274,7 @@ class JacksonModelGenerator(
         } else {
             when (it) {
                 is PropertyInfo.ObjectInlinedField -> {
-                    val props = it.schema.topLevelProperties(HTTP_SETTINGS, enclosingSchema.schema)
+                    val props = it.schema.fullInfo().topLevelProperties(HTTP_SETTINGS, enclosingSchema)
                     val currentModel = standardDataClass(
                         it.name.toModelClassName(enclosingModelName),
                         it.name,
@@ -294,9 +294,9 @@ class JacksonModelGenerator(
                     if (it.schema.isComplexTypedAdditionalProperties("additionalProperties")) {
                         setOf(
                             standardDataClass(
-                                modelName = if (it.schema.isInlinedTypedAdditionalProperties()) it.schema.toMapValueClassName() else it.schema.fullInfo().fullName,
+                                modelName = if (it.schema.isInlinedTypedAdditionalProperties()) it.schema.fullInfo().toMapValueClassName() else it.schema.fullInfo().fullName,
                                 schemaName = it.name,
-                                properties = it.schema.topLevelProperties(HTTP_SETTINGS, enclosingSchema.schema),
+                                properties = it.schema.fullInfo().topLevelProperties(HTTP_SETTINGS, enclosingSchema),
                                 extensions = it.schema.extensions,
                                 oneOfInterfaces = emptySet(),
                             ),
@@ -313,7 +313,7 @@ class JacksonModelGenerator(
                     }
 
                 is PropertyInfo.ListField ->
-                    buildInlinedListDefinition(it.schema.fullInfo(), it.name, enclosingSchema.schema, apiDocUrl, enclosingModelName)
+                    buildInlinedListDefinition(it.schema.fullInfo(), it.name, enclosingSchema, apiDocUrl, enclosingModelName)
 
                 is PropertyInfo.OneOfAny -> emptySet()
             }
@@ -330,16 +330,16 @@ class JacksonModelGenerator(
         schemaInfo.schema.itemsSchema.let { items ->
             when {
                 items.isInlinedObjectDefinition() ->
-                    items.topLevelProperties(HTTP_SETTINGS, enclosingSchema.schema).let { props ->
+                    items.fullInfo().topLevelProperties(HTTP_SETTINGS, enclosingSchema).let { props ->
                         buildInLinedModels(
                             topLevelProperties = props,
                             enclosingSchema = enclosingSchema,
                             apiDocUrl = apiDocUrl,
                         ) + standardDataClass(
-                            modelName = schemaInfo.toModelClassName(enclosingModelName),
+                            modelName = schemaInfo.fullName,
                             schemaName = schemaName,
                             properties = props,
-                            extensions = schemaInfo.extensions,
+                            extensions = schemaInfo.schema.extensions,
                             oneOfInterfaces = emptySet(),
                         )
                     }
@@ -436,9 +436,9 @@ class JacksonModelGenerator(
         if (mapField.schema.additionalPropertiesSchema.isComplexTypedAdditionalProperties("additionalProperties")) {
             val schemaInfo = mapField.schema.additionalPropertiesSchema.fullInfo()
             standardDataClass(
-                modelName = if (schemaInfo.schema.isInlinedTypedAdditionalProperties()) schemaInfo.schema.toMapValueClassName() else schemaInfo.fullName,
+                modelName = if (schemaInfo.schema.isInlinedTypedAdditionalProperties()) schemaInfo.toMapValueClassName() else schemaInfo.fullName,
                 schemaName = schemaInfo.fullName,
-                properties = mapField.schema.additionalPropertiesSchema.topLevelProperties(HTTP_SETTINGS),
+                properties = mapField.schema.additionalPropertiesSchema.fullInfo().topLevelProperties(HTTP_SETTINGS),
                 extensions = mapField.schema.extensions,
                 oneOfInterfaces = emptySet(),
             )

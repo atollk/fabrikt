@@ -1,11 +1,7 @@
 package com.cjbooms.fabrikt.generators
 
 import com.cjbooms.fabrikt.generators.model.JacksonModelGenerator.Companion.toModelType
-import com.cjbooms.fabrikt.model.BodyParameter
-import com.cjbooms.fabrikt.model.IncomingParameter
-import com.cjbooms.fabrikt.model.KotlinTypeInfo
-import com.cjbooms.fabrikt.model.RequestParameter
-import com.cjbooms.fabrikt.util.KaizenParserExtensions.safeName
+import com.cjbooms.fabrikt.model.*
 import com.cjbooms.fabrikt.util.NormalisedString.camelCase
 import com.cjbooms.fabrikt.util.NormalisedString.toKotlinParameterName
 import com.reprezen.kaizen.oasparser.model3.MediaType
@@ -159,7 +155,7 @@ object GeneratorUtils {
         val bodies = requestBody.contentMediaTypes.values
             .map {
                 BodyParameter(
-                    it.schema.safeName().toKotlinParameterName().ifEmpty { it.schema.toVarName() },
+                    it.schema.fullInfo().oasKey.toKotlinParameterName().ifEmpty { it.schema.toVarName() },
                     requestBody.description,
                     toModelType(basePackage, KotlinTypeInfo.from(it.schema)),
                     it.schema

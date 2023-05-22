@@ -4,6 +4,8 @@ import com.cjbooms.fabrikt.cli.ModelCodeGenOptionType
 import com.cjbooms.fabrikt.generators.MutableSettings
 import com.cjbooms.fabrikt.model.OasType
 import com.cjbooms.fabrikt.model.PropertyInfo
+import com.cjbooms.fabrikt.model.SchemaInfo
+import com.cjbooms.fabrikt.model.fullInfo
 import com.cjbooms.fabrikt.util.KaizenParserExtensions.isInlinedObjectDefinition
 import com.cjbooms.fabrikt.util.NormalisedString.toMapValueClassName
 import com.cjbooms.fabrikt.util.NormalisedString.toModelClassName
@@ -28,7 +30,7 @@ object KaizenParserExtensions {
     fun Schema.isPolymorphicSuperType(): Boolean = discriminator?.propertyName != null ||
         getDiscriminatorForInLinedObjectUnderAllOf()?.propertyName != null
 
-    fun IJsonOverlay<*>.pathFromRoot() = Overlay.of(this).pathFromRoot
+    fun IJsonOverlay<*>.pathFromRoot(): String = Overlay.of(this).pathFromRoot!!
 
     fun Schema.isInlinedObjectDefinition() =
         isObjectType() && !isSchemaLess() && (
@@ -48,7 +50,7 @@ object KaizenParserExtensions {
     fun Schema.isInlinedArrayDefinition() =
         isArrayType() && !isSchemaLess() && this.itemsSchema.isInlinedObjectDefinition()
 
-    fun Schema.toMapValueClassName() = safeName().toMapValueClassName()
+    fun SchemaInfo.toMapValueClassName() = this.fullName.toMapValueClassName()
 
     fun Schema.isSchemaLess() = isObjectType() && properties?.isEmpty() == true
 
@@ -108,12 +110,12 @@ object KaizenParserExtensions {
 
     private fun Schema.getSchemaNameInParent(): String? = Overlay.of(this).pathInParent
 
-    fun Schema.isPolymorphicSubType(api: OpenApi3): Boolean =
+    fun SchemaInfo.isPolymorphicSubType(api: OpenApi3): Boolean =
         getEnclosingSchema(api)?.let { schema ->
             schema.allOfSchemas.any { it.isPolymorphicSuperType() }
         } ?: false
 
-    fun Schema.getSuperType(api: OpenApi3): Schema? =
+    fun SchemaInfo.getSuperType(api: OpenApi3): Schema? =
         getEnclosingSchema(api)?.let { schema ->
             schema.allOfSchemas.firstOrNull { it.isPolymorphicSuperType() }
         }
@@ -121,8 +123,8 @@ object KaizenParserExtensions {
     fun Schema.getDiscriminatorForInLinedObjectUnderAllOf(): Discriminator? =
         this.allOfSchemas.firstOrNull { it.isInLinedObjectUnderAllOf() }?.discriminator
 
-    private fun Schema.getEnclosingSchema(api: OpenApi3): Schema? =
-        api.schemas.values.firstOrNull { it.name == safeName() }
+    private fun SchemaInfo.getEnclosingSchema(api: OpenApi3): Schema? =
+        api.schemas.values.firstOrNull { it.name == this.oasKey }
 
     fun Schema.isRequired(
         prop: Map.Entry<String, Schema>,
@@ -159,7 +161,7 @@ object KaizenParserExtensions {
     fun Discriminator.mappingKeys(enclosingSchema: Schema): Map<String, String> {
         val discriminatorMappings = mappings?.map { it.key to it.value.split("/").last() }?.toMap()
         return if (discriminatorMappings.isNullOrEmpty()) {
-            mapOf(enclosingSchema.name to enclosingSchema.safeName().toModelClassName())
+            mapOf(enclosingSchema.name to enclosingSchema.fullInfo().fullName)
         } else {
             discriminatorMappings
         }

@@ -80,7 +80,7 @@ sealed class KotlinTypeInfo(val modelKClass: KClass<*>, val generatedModelClassN
                 OasType.Map ->
                     Map(from(schema.additionalPropertiesSchema, "", fullName))
                 OasType.TypedObjectAdditionalProperties -> GeneratedTypedAdditionalProperties(
-                    if (schema.isInlinedTypedAdditionalProperties()) schema.toMapValueClassName()
+                    if (schema.isInlinedTypedAdditionalProperties()) schema.fullInfo().toMapValueClassName()
                     else fullName
                 )
                 OasType.UntypedObjectAdditionalProperties -> UntypedObjectAdditionalProperties

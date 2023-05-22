@@ -11,9 +11,7 @@ import com.cjbooms.fabrikt.util.KaizenParserExtensions.isInlinedObjectDefinition
 import com.cjbooms.fabrikt.util.KaizenParserExtensions.isRequired
 import com.cjbooms.fabrikt.util.KaizenParserExtensions.isSchemaLess
 import com.cjbooms.fabrikt.util.KaizenParserExtensions.isSimpleMapDefinition
-import com.cjbooms.fabrikt.util.KaizenParserExtensions.safeName
 import com.cjbooms.fabrikt.util.KaizenParserExtensions.safeType
-import com.cjbooms.fabrikt.util.KaizenParserExtensions.toModelClassName
 import com.cjbooms.fabrikt.util.NormalisedString.camelCase
 import com.cjbooms.fabrikt.util.NormalisedString.toEnumName
 import com.reprezen.kaizen.oasparser.model3.Schema
@@ -39,43 +37,43 @@ sealed class PropertyInfo {
 
         val HTTP_SETTINGS = Settings()
 
-        fun Schema.topLevelProperties(settings: Settings, enclosingSchema: Schema? = null): Collection<PropertyInfo> {
+        fun SchemaInfo.topLevelProperties(settings: Settings, enclosingSchema: SchemaInfo? = null): Collection<PropertyInfo> {
             val results = mutableListOf<PropertyInfo>() +
-                allOfSchemas.flatMap {
-                    it.topLevelProperties(
+                schema.allOfSchemas.flatMap {
+                    it.fullInfo().topLevelProperties(
                         maybeMarkInherited(
                             settings,
-                            enclosingSchema,
-                            it
+                            enclosingSchema?.schema,
+                            it.fullInfo()
                         ),
                         this
                     )
                 } +
-                (if (oneOfSchemas.isEmpty()) emptyList() else listOf(OneOfAny(oneOfSchemas.first()))) +
-                anyOfSchemas.flatMap { it.topLevelProperties(settings.copy(markAllOptional = true), this) } +
+                (if (schema.oneOfSchemas.isEmpty()) emptyList() else listOf(OneOfAny(schema.oneOfSchemas.first()))) +
+                schema.anyOfSchemas.flatMap { it.fullInfo().topLevelProperties(settings.copy(markAllOptional = true), this) } +
                 getInLinedProperties(settings, enclosingSchema)
             return results.distinctBy { it.oasKey }
         }
 
-        private fun maybeMarkInherited(settings: Settings, enclosingSchema: Schema?, it: Schema): Settings {
+        private fun maybeMarkInherited(settings: Settings, enclosingSchema: Schema?, schemaInfo: SchemaInfo): Settings {
             val isInherited = when {
-                it.safeName() == enclosingSchema?.name -> false
-                it.hasNoDiscriminator() -> settings.markAsInherited
-                it.isInLinedObjectUnderAllOf() && it.hasNoDiscriminator() -> settings.markAsInherited
+                schemaInfo.fullName == enclosingSchema?.name -> false
+                schemaInfo.schema.hasNoDiscriminator() -> settings.markAsInherited
+                schemaInfo.schema.isInLinedObjectUnderAllOf() && schemaInfo.schema.hasNoDiscriminator() -> settings.markAsInherited
                 else -> true
             }
             return settings.copy(markAsInherited = isInherited)
         }
 
-        private fun Schema.getInLinedProperties(
+        private fun SchemaInfo.getInLinedProperties(
             settings: Settings,
-            enclosingSchema: Schema? = null
+            enclosingSchema: SchemaInfo? = null
         ): Collection<PropertyInfo> {
-            val mainProperties: List<PropertyInfo> = properties.map { property ->
+            val mainProperties: List<PropertyInfo> = this.schema.properties.map { property ->
                 when (property.value.safeType()) {
                     OasType.Array.type ->
                         ListField(
-                            isRequired(property, settings.markReadWriteOnlyOptional, settings.markAllOptional),
+                            schema.isRequired(property, settings.markReadWriteOnlyOptional, settings.markAllOptional),
                             property.key,
                             property.value,
                             settings.markAsInherited,
@@ -87,7 +85,7 @@ sealed class PropertyInfo {
                     OasType.Object.type ->
                         if (property.value.isSimpleMapDefinition() || property.value.isSchemaLess())
                             MapField(
-                                isRequired = isRequired(
+                                isRequired = schema.isRequired(
                                     property,
                                     settings.markReadWriteOnlyOptional,
                                     settings.markAllOptional
@@ -99,7 +97,7 @@ sealed class PropertyInfo {
                             )
                         else if (property.value.isInlinedObjectDefinition())
                             ObjectInlinedField(
-                                isRequired = isRequired(
+                                isRequired = schema.isRequired(
                                     property, settings.markReadWriteOnlyOptional, settings.markAllOptional
                                 ),
                                 oasKey = property.key,
@@ -110,7 +108,7 @@ sealed class PropertyInfo {
                             )
                         else
                             ObjectRefField(
-                                isRequired(property, settings.markReadWriteOnlyOptional, settings.markAllOptional),
+                                schema.isRequired(property, settings.markReadWriteOnlyOptional, settings.markAllOptional),
                                 property.key,
                                 property.value,
                                 settings.markAsInherited,
@@ -121,13 +119,13 @@ sealed class PropertyInfo {
                             null
                         } else {
                             Field(
-                                isRequired(property, settings.markReadWriteOnlyOptional, settings.markAllOptional),
+                                schema.isRequired(property, settings.markReadWriteOnlyOptional, settings.markAllOptional),
                                 oasKey = property.key,
                                 schema = property.value,
                                 isInherited = settings.markAsInherited,
-                                isPolymorphicDiscriminator = isDiscriminatorProperty(property),
+                                isPolymorphicDiscriminator = schema.isDiscriminatorProperty(property),
                                 maybeDiscriminator = enclosingSchema?.let {
-                                    this.getKeyIfSingleDiscriminatorValue(property, it)
+                                    this.schema.getKeyIfSingleDiscriminatorValue(property, it.schema)
                                 },
                                 enclosingSchema = if (property.value.isInlinedEnumDefinition()) this else null
                             )
@@ -135,10 +133,10 @@ sealed class PropertyInfo {
                 }
             }.filterNotNull()
 
-            return if (hasAdditionalProperties())
+            return if (schema.hasAdditionalProperties())
                 mainProperties
                     .plus(
-                        AdditionalProperties(additionalPropertiesSchema, settings.markAsInherited, this)
+                        AdditionalProperties(schema.additionalPropertiesSchema, settings.markAsInherited, this)
                     )
             else mainProperties
         }
@@ -158,10 +156,10 @@ sealed class PropertyInfo {
         override val isInherited: Boolean,
         val isPolymorphicDiscriminator: Boolean,
         val maybeDiscriminator: Map<String, DiscriminatorKey>?,
-        val enclosingSchema: Schema? = null
+        val enclosingSchema: SchemaInfo? = null
     ) : PropertyInfo() {
         override val typeInfo: KotlinTypeInfo =
-            KotlinTypeInfo.from(schema, oasKey, enclosingSchema?.toModelClassName() ?: "")
+            KotlinTypeInfo.from(schema, oasKey, enclosingSchema?.fullName ?: "")
         val pattern: String? = schema.safeField(Schema::getPattern)
         val maxLength: Int? = schema.safeField(Schema::getMaxLength)
         val minLength: Int? = schema.safeField(Schema::getMinLength)
@@ -183,11 +181,11 @@ sealed class PropertyInfo {
         override val oasKey: String,
         override val schema: Schema,
         override val isInherited: Boolean,
-        val parentSchema: Schema,
-        val enclosingSchema: Schema?
+        val parentSchema: SchemaInfo,
+        val enclosingSchema: SchemaInfo?
     ) : PropertyInfo(), CollectionValidation {
         override val typeInfo: KotlinTypeInfo =
-            KotlinTypeInfo.from(schema, oasKey, enclosingSchema?.toModelClassName() ?: "")
+            KotlinTypeInfo.from(schema, oasKey, schema.fullInfo().fullName)
         override val minItems: Int? = schema.minItems
         override val maxItems: Int? = schema.maxItems
     }
@@ -197,7 +195,7 @@ sealed class PropertyInfo {
         override val oasKey: String,
         override val schema: Schema,
         override val isInherited: Boolean,
-        val parentSchema: Schema
+        val parentSchema: SchemaInfo
     ) : PropertyInfo() {
         override val typeInfo: KotlinTypeInfo = KotlinTypeInfo.from(schema, oasKey)
     }
@@ -207,7 +205,7 @@ sealed class PropertyInfo {
         override val oasKey: String,
         override val schema: Schema,
         override val isInherited: Boolean,
-        val parentSchema: Schema
+        val parentSchema: SchemaInfo
     ) : PropertyInfo() {
         override val typeInfo: KotlinTypeInfo = KotlinTypeInfo.from(schema, oasKey)
     }
@@ -217,17 +215,17 @@ sealed class PropertyInfo {
         override val oasKey: String,
         override val schema: Schema,
         override val isInherited: Boolean,
-        val parentSchema: Schema,
-        val enclosingSchema: Schema?
+        val parentSchema: SchemaInfo,
+        val enclosingSchema: SchemaInfo?
     ) : PropertyInfo() {
         override val typeInfo: KotlinTypeInfo =
-            KotlinTypeInfo.from(schema, oasKey, enclosingSchema?.toModelClassName() ?: "")
+            KotlinTypeInfo.from(schema, oasKey, enclosingSchema?.fullName ?: "")
     }
 
     data class AdditionalProperties(
         override val schema: Schema,
         override val isInherited: Boolean,
-        val parentSchema: Schema
+        val parentSchema: SchemaInfo
     ) : PropertyInfo() {
         override val oasKey: String = "properties"
         override val typeInfo: KotlinTypeInfo = KotlinTypeInfo.from(schema, "additionalProperties")

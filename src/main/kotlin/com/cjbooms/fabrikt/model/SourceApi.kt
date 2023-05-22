@@ -19,7 +19,7 @@ data class SchemaInfo(
     val fullName: String,
     val schema: Schema
 ) {
-    val typeInfo: KotlinTypeInfo = KotlinTypeInfo.from(schema, oasKey = oasKey)
+    val typeInfo: KotlinTypeInfo = KotlinTypeInfo.from(schema, oasKey = oasKey, fullName = fullName)
 }
 
 data class SourceApi(
@@ -94,12 +94,17 @@ data class SourceApi(
     }
 }
 
-fun Schema.fullInfo() = SchemaInfo("" /*TODO*/, SchemaNameBuilder.getName(this), this)
+fun Schema.fullInfo() = SchemaInfo(SchemaNameBuilder.getOasKey(this), SchemaNameBuilder.getName(this), this)
 
 private object SchemaNameBuilder {
+    fun getOasKey(schema: Schema): String {
+        val overlay = Overlay.of(schema)
+        return overlay.pathInParent ?: overlay.pathFromRoot.split("/").lastOrNull() ?: ""
+    }
+
     fun getName(schema: Schema): String {
-        // TODO
-        return TODO()
+        // TODO: do an actual implementation
+        return Overlay.of(schema).pathInParent.toModelClassName()
     }
 
     private fun Schema.toModelClassName(enclosingClassName: String = "") =
