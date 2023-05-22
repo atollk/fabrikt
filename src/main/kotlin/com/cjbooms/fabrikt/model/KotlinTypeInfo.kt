@@ -8,6 +8,7 @@ import com.cjbooms.fabrikt.util.KaizenParserExtensions.isInlinedTypedAdditionalP
 import com.cjbooms.fabrikt.util.KaizenParserExtensions.isNotDefined
 import com.cjbooms.fabrikt.util.KaizenParserExtensions.isOneOfSuperInterface
 import com.cjbooms.fabrikt.util.KaizenParserExtensions.toMapValueClassName
+import com.cjbooms.fabrikt.util.NormalisedString.toMapValueClassName
 import com.reprezen.kaizen.oasparser.model3.Schema
 import java.math.BigDecimal
 import java.net.URI
@@ -61,7 +62,7 @@ sealed class KotlinTypeInfo(val modelKClass: KClass<*>, val generatedModelClassN
                 OasType.DateTime -> getOverridableDateTimeType()
                 OasType.Text -> Text
                 OasType.Enum ->
-                    Enum(schema.getEnumValues(), fullName)
+                    Enum(schema.getEnumValues(), fullName.ifEmpty { "DEFAULTENUMTODO" })
                 OasType.Uuid -> Uuid
                 OasType.Uri -> Uri
                 OasType.ByteArray -> ByteArray
@@ -80,7 +81,7 @@ sealed class KotlinTypeInfo(val modelKClass: KClass<*>, val generatedModelClassN
                 OasType.Map ->
                     Map(from(schema.additionalPropertiesSchema, "", fullName))
                 OasType.TypedObjectAdditionalProperties -> GeneratedTypedAdditionalProperties(
-                    if (schema.isInlinedTypedAdditionalProperties()) schema.fullInfo().toMapValueClassName()
+                    if (schema.isInlinedTypedAdditionalProperties()) SchemaNameBuilder.getName(schema).toMapValueClassName()
                     else fullName
                 )
                 OasType.UntypedObjectAdditionalProperties -> UntypedObjectAdditionalProperties

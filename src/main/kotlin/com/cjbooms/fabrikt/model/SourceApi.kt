@@ -96,7 +96,7 @@ data class SourceApi(
 
 fun Schema.fullInfo() = SchemaInfo(SchemaNameBuilder.getOasKey(this), SchemaNameBuilder.getName(this), this)
 
-private object SchemaNameBuilder {
+ object SchemaNameBuilder {
     fun getOasKey(schema: Schema): String {
         val overlay = Overlay.of(schema)
         return overlay.pathInParent ?: overlay.pathFromRoot.split("/").lastOrNull() ?: ""
@@ -104,7 +104,7 @@ private object SchemaNameBuilder {
 
     fun getName(schema: Schema): String {
         // TODO: do an actual implementation
-        return Overlay.of(schema).pathInParent.toModelClassName()
+        return schema.toModelClassName()
     }
 
     private fun Schema.toModelClassName(enclosingClassName: String = "") =

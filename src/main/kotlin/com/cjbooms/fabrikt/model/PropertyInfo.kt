@@ -158,8 +158,7 @@ sealed class PropertyInfo {
         val maybeDiscriminator: Map<String, DiscriminatorKey>?,
         val enclosingSchema: SchemaInfo? = null
     ) : PropertyInfo() {
-        override val typeInfo: KotlinTypeInfo =
-            KotlinTypeInfo.from(schema, oasKey, enclosingSchema?.fullName ?: "")
+        override val typeInfo: KotlinTypeInfo = schema.fullInfo().typeInfo
         val pattern: String? = schema.safeField(Schema::getPattern)
         val maxLength: Int? = schema.safeField(Schema::getMaxLength)
         val minLength: Int? = schema.safeField(Schema::getMinLength)
@@ -184,8 +183,7 @@ sealed class PropertyInfo {
         val parentSchema: SchemaInfo,
         val enclosingSchema: SchemaInfo?
     ) : PropertyInfo(), CollectionValidation {
-        override val typeInfo: KotlinTypeInfo =
-            KotlinTypeInfo.from(schema, oasKey, schema.fullInfo().fullName)
+        override val typeInfo: KotlinTypeInfo = schema.fullInfo().typeInfo
         override val minItems: Int? = schema.minItems
         override val maxItems: Int? = schema.maxItems
     }
@@ -197,7 +195,7 @@ sealed class PropertyInfo {
         override val isInherited: Boolean,
         val parentSchema: SchemaInfo
     ) : PropertyInfo() {
-        override val typeInfo: KotlinTypeInfo = KotlinTypeInfo.from(schema, oasKey)
+        override val typeInfo: KotlinTypeInfo = schema.fullInfo().typeInfo
     }
 
     data class ObjectRefField(
@@ -207,7 +205,7 @@ sealed class PropertyInfo {
         override val isInherited: Boolean,
         val parentSchema: SchemaInfo
     ) : PropertyInfo() {
-        override val typeInfo: KotlinTypeInfo = KotlinTypeInfo.from(schema, oasKey)
+        override val typeInfo: KotlinTypeInfo = schema.fullInfo().typeInfo
     }
 
     data class ObjectInlinedField(
@@ -218,8 +216,7 @@ sealed class PropertyInfo {
         val parentSchema: SchemaInfo,
         val enclosingSchema: SchemaInfo?
     ) : PropertyInfo() {
-        override val typeInfo: KotlinTypeInfo =
-            KotlinTypeInfo.from(schema, oasKey, enclosingSchema?.fullName ?: "")
+        override val typeInfo: KotlinTypeInfo = schema.fullInfo().typeInfo
     }
 
     data class AdditionalProperties(
@@ -228,7 +225,7 @@ sealed class PropertyInfo {
         val parentSchema: SchemaInfo
     ) : PropertyInfo() {
         override val oasKey: String = "properties"
-        override val typeInfo: KotlinTypeInfo = KotlinTypeInfo.from(schema, "additionalProperties")
+        override val typeInfo: KotlinTypeInfo = KotlinTypeInfo.from(schema, "additionalProperties", "TODOADDITIONALPROPERTIES")
         override val isRequired: Boolean = true
     }
 
